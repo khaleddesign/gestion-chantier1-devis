@@ -78,7 +78,7 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('chantiers/{chantier}')->group(function () {
         Route::post('documents', [DocumentController::class, 'store'])->name('documents.store');
     });
-    Route::get('documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
+   
     Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
     
     // Gestion des commentaires
@@ -121,7 +121,136 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::post('cleanup/files', [DocumentController::class, 'cleanupOrphanedFiles'])->name('admin.cleanup.files');
 });
 
-// Routes API pour les appels AJAX (sécurisées)
+// 🚀 NOUVELLES ROUTES POUR LE DASHBOARD CLIENT
+Route::middleware(['auth'])->group(function () {
+    
+    // ✅ Routes pour les fonctionnalités du dashboard client
+    
+    // Notation d'un chantier
+    Route::post('/chantiers/{chantier}/notation', function(Illuminate\Http\Request $request, App\Models\Chantier $chantier) {
+        // Vérifier que l'utilisateur est bien le client de ce chantier
+        if (Auth::user()->id !== $chantier->client_id && !Auth::user()->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Non autorisé'], 403);
+        }
+        
+        $validated = $request->validate([
+            'rating' => 'required|integer|min:1|max:5',
+            'commentaire' => 'nullable|string|max:1000'
+        ]);
+        
+        // Pour l'instant, on simule l'enregistrement
+        // Vous pouvez créer une table "notations" plus tard si nécessaire
+        \Illuminate\Support\Facades\Log::info('Notation reçue', [
+            'chantier_id' => $chantier->id,
+            'user_id' => Auth::id(),
+            'rating' => $validated['rating'],
+            'commentaire' => $validated['commentaire']
+        ]);
+        
+        // Créer une notification pour le commercial
+        App\Models\Notification::create([
+            'user_id' => $chantier->commercial_id,
+            'chantier_id' => $chantier->id,
+            'type' => 'nouvelle_notation',
+            'titre' => 'Nouvelle évaluation client',
+            'message' => "Le client " . Auth::user()->name . " a évalué le chantier '{$chantier->titre}' avec " . $validated['rating'] . " étoiles."
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Notation enregistrée avec succès'
+        ]);
+    })->name('chantiers.notation');
+    
+    // Documents d'un chantier (API JSON)
+    Route::get('/api/chantiers/{chantier}/documents', function(App\Models\Chantier $chantier) {
+        // Vérifier les permissions
+        if (Auth::user()->id !== $chantier->client_id && 
+            Auth::user()->id !== $chantier->commercial_id && 
+            !Auth::user()->isAdmin()) {
+            return response()->json(['error' => 'Non autorisé'], 403);
+        }
+        
+        $documents = $chantier->documents->map(function($document) {
+            return [
+                'id' => $document->id,
+                'nom_original' => $document->nom_original,
+                'description' => $document->description,
+                'taille_formatee' => $document->getTailleFormatee(),
+                'icone' => $document->getIconeType(),
+                'date_upload' => $document->created_at->format('d/m/Y'),
+                'download_url' => route('documents.download', $document)
+            ];
+        });
+        
+        return response()->json([
+            'success' => true,
+            'documents' => $documents
+        ]);
+    })->name('api.chantiers.documents');
+    
+    // Informations d'un commercial (API JSON)
+    Route::get('/api/commercial/{user}', function(App\Models\User $user) {
+        if ($user->role !== 'commercial') {
+            return response()->json(['error' => 'Utilisateur non trouvé'], 404);
+        }
+        
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'telephone' => $user->telephone
+        ]);
+    })->name('api.commercial.info');
+    
+    // Demande de rappel
+    Route::post('/api/rappel/demander', function(Illuminate\Http\Request $request) {
+        $validated = $request->validate([
+            'commercial_id' => 'nullable|exists:users,id',
+            'message' => 'nullable|string|max:500'
+        ]);
+        
+        $commercialId = $validated['commercial_id'] ?? 
+            Auth::user()->chantiersClient()->first()?->commercial_id ?? 
+            App\Models\User::where('role', 'commercial')->first()?->id;
+        
+        if ($commercialId) {
+            // Créer une notification pour le commercial
+            App\Models\Notification::create([
+                'user_id' => $commercialId,
+                'chantier_id' => null,
+                'type' => 'demande_rappel',
+                'titre' => 'Demande de rappel',
+                'message' => "Le client " . Auth::user()->name . " demande un rappel. Message: " . ($validated['message'] ?? 'Aucun message spécifique.')
+            ]);
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Demande de rappel enregistrée'
+        ]);
+    })->name('api.rappel.demander');
+    
+    // Avancement des chantiers (pour le rafraîchissement auto)
+    Route::get('/api/dashboard/avancement', function() {
+        $user = Auth::user();
+        
+        if ($user->isClient()) {
+            $chantiers = $user->chantiersClient()->select('id', 'avancement_global')->get();
+        } elseif ($user->isCommercial()) {
+            $chantiers = $user->chantiersCommercial()->select('id', 'avancement_global')->get();
+        } else {
+            $chantiers = App\Models\Chantier::select('id', 'avancement_global')->get();
+        }
+        
+        return response()->json([
+            'success' => true,
+            'chantiers' => $chantiers
+        ]);
+    })->name('api.dashboard.avancement');
+});
+
+// Routes API pour les appels AJAX (sécurisées) - EXISTANTES
 Route::middleware(['auth'])->prefix('api')->group(function () {
     Route::get('chantiers/{chantier}/avancement', function (App\Models\Chantier $chantier) {
         // Vérification des autorisations
@@ -214,4 +343,41 @@ if (app()->environment('local')) {
             'chantier' => \App\Models\Chantier::first() ?? new \App\Models\Chantier(),
         ]);
     });
+    
+    // 🧪 Route de test pour le dashboard client
+    Route::get('/test-dashboard', function () {
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+        
+        return view('dashboard.client', [
+            'mes_chantiers' => Auth::user()->chantiersClient,
+            'notifications' => Auth::user()->notifications()->latest()->limit(5)->get()
+        ]);
+    })->middleware('auth');
 }
+
+Route::middleware(['auth'])->group(function () {
+    
+    // 📁 Routes de téléchargement des documents (versions alternatives)
+    Route::get('documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
+    Route::get('documents/{document}/view', [DocumentController::class, 'view'])->name('documents.view');
+    Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
+    
+    // 📦 Téléchargement groupé
+    Route::get('chantiers/{chantier}/documents/download-all', [DocumentController::class, 'downloadAll'])->name('chantiers.documents.download-all');
+    
+    // 📊 API pour les documents
+    Route::get('api/chantiers/{chantier}/documents', [DocumentController::class, 'apiList'])->name('api.chantiers.documents');
+    
+    // 🔧 Routes de maintenance (admin uniquement)
+    Route::middleware(['role:admin'])->group(function () {
+        Route::post('admin/documents/fix-paths', [DocumentController::class, 'fixPaths'])->name('admin.documents.fix-paths');
+        Route::post('admin/documents/cleanup', [DocumentController::class, 'cleanupOrphanedFiles'])->name('admin.documents.cleanup');
+        
+        // 🔍 Debug (environnement local uniquement)
+        if (app()->environment('local')) {
+            Route::get('debug/documents', [DocumentController::class, 'debugInfo'])->name('debug.documents');
+        }
+    });
+});
