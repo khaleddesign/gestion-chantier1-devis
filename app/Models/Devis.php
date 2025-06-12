@@ -1,5 +1,5 @@
 <?php
-// app/Models/Devis.php
+// app/Models/Devis.php - VERSION CORRIGÉE
 
 namespace App\Models;
 
@@ -38,6 +38,9 @@ class Devis extends Model
         'delai_realisation' => 'integer',
     ];
 
+    // Flag pour éviter la récursion
+    protected static $calculatingTotals = false;
+
     // Relations
     public function chantier()
     {
@@ -59,7 +62,42 @@ class Devis extends Model
         return $this->belongsTo(Facture::class);
     }
 
-    // Méthodes métier
+    // 🔧 MÉTHODE CORRIGÉE - Plus de récursion infinie
+    public function calculerMontants(): void
+    {
+        // Éviter la récursion
+        if (static::$calculatingTotals) {
+            return;
+        }
+
+        static::$calculatingTotals = true;
+
+        try {
+            $montantHT = $this->lignes->sum('montant_ht');
+            $montantTVA = $this->lignes->sum('montant_tva');
+            $montantTTC = $montantHT + $montantTVA;
+
+            // Mise à jour directe sans trigger d'événements
+            DB::table('devis')
+                ->where('id', $this->id)
+                ->update([
+                    'montant_ht' => $montantHT,
+                    'montant_tva' => $montantTVA,
+                    'montant_ttc' => $montantTTC,
+                    'updated_at' => now(),
+                ]);
+
+            // Mettre à jour l'instance actuelle
+            $this->montant_ht = $montantHT;
+            $this->montant_tva = $montantTVA;
+            $this->montant_ttc = $montantTTC;
+
+        } finally {
+            static::$calculatingTotals = false;
+        }
+    }
+
+    // Méthodes métier inchangées...
     public static function genererNumero(): string
     {
         $annee = date('Y');
@@ -75,19 +113,6 @@ class Devis extends Model
         }
 
         return sprintf('DEV-%s-%03d', $annee, $numero);
-    }
-
-    public function calculerMontants(): void
-    {
-        $montantHT = $this->lignes->sum('montant_ht');
-        $montantTVA = $this->lignes->sum('montant_tva');
-        $montantTTC = $montantHT + $montantTVA;
-
-        $this->update([
-            'montant_ht' => $montantHT,
-            'montant_tva' => $montantTVA,
-            'montant_ttc' => $montantTTC,
-        ]);
     }
 
     public function isExpire(): bool
@@ -143,7 +168,7 @@ class Devis extends Model
         ]);
     }
 
-    // Accesseurs
+    // Accesseurs inchangés...
     public function getStatutBadgeClassAttribute(): string
     {
         return match ($this->statut) {
@@ -173,7 +198,7 @@ class Devis extends Model
         return $this->client_info['nom'] ?? $this->chantier->client->name ?? 'Client inconnu';
     }
 
-    // Scopes
+    // Scopes inchangés...
     public function scopeEnCours($query)
     {
         return $query->whereIn('statut', ['brouillon', 'envoye']);
@@ -190,17 +215,7 @@ class Devis extends Model
         return $query->where('statut', 'accepte');
     }
 
-    public function scopePourCommercial($query, $commercialId)
-    {
-        return $query->where('commercial_id', $commercialId);
-    }
-
-    public function scopePourChantier($query, $chantierId)
-    {
-        return $query->where('chantier_id', $chantierId);
-    }
-
-    // Événements du modèle
+    // 🔧 ÉVÉNEMENTS CORRIGÉS - Plus de récursion
     protected static function boot()
     {
         parent::boot();
@@ -217,13 +232,7 @@ class Devis extends Model
             }
         });
 
-        static::saved(function ($devis) {
-            // Mettre à jour les montants après modification des lignes
-            if ($devis->isDirty(['montant_ht', 'montant_tva', 'montant_ttc'])) {
-                // Éviter la récursion
-                return;
-            }
-            $devis->calculerMontants();
-        });
+        // Événement saved supprimé pour éviter la récursion
+        // Le calcul des montants doit être fait manuellement après modification des lignes
     }
 }

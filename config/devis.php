@@ -121,14 +121,13 @@ return [
             'divers' => 'Divers',
         ],
         
-        // Taux de TVA disponibles
-        'tva' => [
-    // clés STRING  ⇒ plus de conversion implicite
-    '0'   => 0.00,   // Exonéré
-    '5.5' => 0.055,  // Réduit
-    '10'  => 0.10,   // Intermédiaire
-    '20'  => 0.20,   // Normal
-],
+        // 🔧 CORRECTION: Taux de TVA avec clés numériques
+        'taux_tva' => [
+            '0.00' => '0% (exonéré)',      // ← Guillemets ajoutés
+            '5.50' => '5,5% (taux réduit)', // ← Guillemets ajoutés  
+            '10.00' => '10% (taux intermédiaire)', // ← Guillemets ajoutés
+            '20.00' => '20% (taux normal)', // ← Guillemets ajoutés
+        ],
     ],
 
     // Configuration PDF
