@@ -20,29 +20,44 @@ class AdminController extends Controller
         $this->middleware(['auth', 'role:admin']);
     }
 
-    // --- DASHBOARD ADMIN ---
-    public function index()
+    // --- DASHBOARD ADMIN (PAGE PRINCIPALE) ---
+    public function index(Request $request)
     {
-        $stats = [
-            'total_users'           => User::count(),
-            'total_chantiers'       => Chantier::count(),
-            'chantiers_actifs'      => Chantier::where('statut', 'en_cours')->count(),
-            'chantiers_termines'    => Chantier::where('statut', 'termine')->count(),
-            'chantiers_en_retard'   => Chantier::whereDate('date_fin_prevue', '<', now())
-                                              ->where('statut', '!=', 'termine')
-                                              ->count(),
-            'notifications_non_lues'=> Notification::where('lu', false)->count(),
-            'utilisateurs_actifs'   => User::where('active', true)->count(),
-            'avancement_moyen'      => Chantier::avg('avancement_global') ?? 0,
-        ];
+        // Construction de la requête avec filtres (comme dans users())
+        $query = User::query();
 
-        $chantiers_recents     = Chantier::with(['client','commercial'])->latest()->take(5)->get();
-        $notifications_recentes = Notification::with(['user','chantier'])->latest()->take(10)->get();
+        // Filtres
+        if ($request->filled('role')) { 
+            $query->where('role', $request->role); 
+        }
+        
+        if ($request->filled('active')) { 
+            $query->where('active', $request->active === '1'); 
+        }
+        
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('telephone', 'like', "%{$search}%");
+            });
+        }
 
-        return view('admin.index', compact('stats','chantiers_recents','notifications_recentes'));
+        // Récupérer les utilisateurs avec pagination et relations
+        $users = $query->with(['chantiersClient', 'chantiersCommercial'])
+                       ->withCount(['chantiersClient', 'chantiersCommercial'])
+                       ->orderBy('created_at', 'desc')
+                       ->paginate(15);
+
+        // Garder les paramètres de recherche dans la pagination
+        $users->appends($request->query());
+
+        // Retourner la vue admin.index avec les utilisateurs
+        return view('admin.index', compact('users'));
     }
 
-    // --- LISTE UTILISATEURS ---
+    // --- LISTE UTILISATEURS (pour /admin/users) ---
     public function users(Request $request)
     {
         $query = User::query();
