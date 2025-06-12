@@ -153,3 +153,75 @@ class Chantier extends Model
         return '';
     }
 }
+
+
+// Ajout à app/Models/Chantier.php - Relations pour devis/factures
+
+// Ajouter ces méthodes dans la classe Chantier existante :
+
+public function devis()
+{
+    return $this->hasMany(Devis::class)->orderBy('created_at', 'desc');
+}
+
+public function factures()
+{
+    return $this->hasMany(Facture::class)->orderBy('created_at', 'desc');
+}
+
+public function devisActifs()
+{
+    return $this->hasMany(Devis::class)->whereIn('statut', ['brouillon', 'envoye']);
+}
+
+public function devisAcceptes()
+{
+    return $this->hasMany(Devis::class)->where('statut', 'accepte');
+}
+
+public function facturesImpayees()
+{
+    return $this->hasMany(Facture::class)->whereIn('statut', ['envoyee', 'payee_partiel', 'en_retard']);
+}
+
+// Méthodes métier pour les devis/factures
+public function getMontantTotalDevisAttribute(): float
+{
+    return $this->devisAcceptes->sum('montant_ttc');
+}
+
+public function getMontantTotalFacturesAttribute(): float
+{
+    return $this->factures->sum('montant_ttc');
+}
+
+public function getMontantRestantAPayerAttribute(): float
+{
+    return $this->factures->sum('montant_restant');
+}
+
+public function getAvancementFacturationAttribute(): float
+{
+    $totalDevis = $this->getMontantTotalDevisAttribute();
+    $totalFactures = $this->getMontantTotalFacturesAttribute();
+    
+    return $totalDevis > 0 ? round(($totalFactures / $totalDevis) * 100, 1) : 0;
+}
+
+public function getTauxPaiementAttribute(): float
+{
+    $totalFactures = $this->getMontantTotalFacturesAttribute();
+    $montantPaye = $this->factures->sum('montant_paye');
+    
+    return $totalFactures > 0 ? round(($montantPaye / $totalFactures) * 100, 1) : 0;
+}
+
+public function aDesFacturesEnRetard(): bool
+{
+    return $this->factures()->enRetard()->exists();
+}
+
+public function peutAvoirNouveauDevis(): bool
+{
+    return in_array($this->statut, ['planifie', 'en_cours']);
+}

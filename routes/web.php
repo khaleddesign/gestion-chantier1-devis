@@ -381,3 +381,258 @@ Route::middleware(['auth'])->group(function () {
         }
     });
 });
+
+<?php
+// Ajout à routes/web.php - Routes pour les devis et factures
+
+Route::middleware(['auth'])->group(function () {
+    
+    // ========================================
+    // ROUTES DEVIS
+    // ========================================
+    
+    // Routes principales pour les devis (nested sous chantiers)
+    Route::resource('chantiers.devis', DevisController::class);
+    
+    // Routes spécifiques pour les devis
+    Route::prefix('chantiers/{chantier}/devis/{devis}')->group(function () {
+        // Actions du commercial
+        Route::post('envoyer', [DevisController::class, 'envoyer'])->name('devis.envoyer');
+        Route::post('dupliquer', [DevisController::class, 'dupliquer'])->name('devis.dupliquer');
+        Route::post('convertir', [DevisController::class, 'convertirEnFacture'])->name('devis.convertir');
+        
+        // Actions du client
+        Route::post('accepter', [DevisController::class, 'accepter'])->name('devis.accepter');
+        Route::post('refuser', [DevisController::class, 'refuser'])->name('devis.refuser');
+        
+        // Téléchargements
+        Route::get('pdf', [DevisController::class, 'downloadPdf'])->name('devis.pdf');
+        Route::get('preview', [DevisController::class, 'previewPdf'])->name('devis.preview');
+    });
+    
+    // ========================================
+    // ROUTES FACTURES
+    // ========================================
+    
+    // Routes principales pour les factures (nested sous chantiers)
+    Route::resource('chantiers.factures', FactureController::class);
+    
+    // Routes spécifiques pour les factures
+    Route::prefix('chantiers/{chantier}/factures/{facture}')->group(function () {
+        // Actions du commercial
+        Route::post('envoyer', [FactureController::class, 'envoyer'])->name('factures.envoyer');
+        Route::post('annuler', [FactureController::class, 'annuler'])->name('factures.annuler');
+        Route::post('dupliquer', [FactureController::class, 'dupliquer'])->name('factures.dupliquer');
+        Route::post('relance', [FactureController::class, 'envoyerRelance'])->name('factures.relance');
+        
+        // Gestion des paiements
+        Route::get('paiements', [FactureController::class, 'paiements'])->name('factures.paiements');
+        Route::post('paiements', [FactureController::class, 'ajouterPaiement'])->name('factures.paiements.store');
+        
+        // Téléchargements
+        Route::get('pdf', [FactureController::class, 'downloadPdf'])->name('factures.pdf');
+        Route::get('preview', [FactureController::class, 'previewPdf'])->name('factures.preview');
+        Route::get('recapitulatif-paiements', [FactureController::class, 'recapitulatifPaiements'])->name('factures.recapitulatif');
+    });
+    
+    // Routes pour les paiements individuels
+    Route::prefix('paiements')->group(function () {
+        Route::put('{paiement}', [PaiementController::class, 'update'])->name('paiements.update');
+        Route::delete('{paiement}', [PaiementController::class, 'destroy'])->name('paiements.destroy');
+        Route::post('{paiement}/valider', [PaiementController::class, 'valider'])->name('paiements.valider');
+        Route::post('{paiement}/rejeter', [PaiementController::class, 'rejeter'])->name('paiements.rejeter');
+    });
+    
+    // ========================================
+    // ROUTES API POUR DEVIS/FACTURES
+    // ========================================
+    
+    Route::prefix('api')->group(function () {
+        // API pour le calcul automatique des totaux
+        Route::post('lignes/calculer', function (Request $request) {
+            $validated = $request->validate([
+                'quantite' => 'required|numeric|min:0',
+                'prix_unitaire_ht' => 'required|numeric|min:0',
+                'taux_tva' => 'required|numeric|min:0|max:100',
+                'remise_pourcentage' => 'nullable|numeric|min:0|max:100',
+            ]);
+            
+            $quantite = $validated['quantite'];
+            $prixUnitaire = $validated['prix_unitaire_ht'];
+            $tauxTva = $validated['taux_tva'];
+            $remisePourcentage = $validated['remise_pourcentage'] ?? 0;
+            
+            $montantHtBrut = $quantite * $prixUnitaire;
+            $remiseMontant = $montantHtBrut * ($remisePourcentage / 100);
+            $montantHt = $montantHtBrut - $remiseMontant;
+            $montantTva = $montantHt * ($tauxTva / 100);
+            $montantTtc = $montantHt + $montantTva;
+            
+            return response()->json([
+                'montant_ht_brut' => round($montantHtBrut, 2),
+                'remise_montant' => round($remiseMontant, 2),
+                'montant_ht' => round($montantHt, 2),
+                'montant_tva' => round($montantTva, 2),
+                'montant_ttc' => round($montantTtc, 2),
+            ]);
+        })->name('api.lignes.calculer');
+        
+        // API pour les statistiques financières
+        Route::get('chantiers/{chantier}/financier', function (Chantier $chantier) {
+            $user = auth()->user();
+            
+            // Vérifier les autorisations
+            if (!$user->isAdmin() && 
+                !($user->isCommercial() && $chantier->commercial_id === $user->id) &&
+                !($user->isClient() && $chantier->client_id === $user->id)) {
+                abort(403);
+            }
+            
+            $devis = $chantier->devis;
+            $factures = $chantier->factures;
+            
+            return response()->json([
+                'devis' => [
+                    'total' => $devis->count(),
+                    'en_cours' => $devis->whereIn('statut', ['brouillon', 'envoye'])->count(),
+                    'acceptes' => $devis->where('statut', 'accepte')->count(),
+                    'montant_total' => $devis->where('statut', 'accepte')->sum('montant_ttc'),
+                ],
+                'factures' => [
+                    'total' => $factures->count(),
+                    'payees' => $factures->where('statut', 'payee')->count(),
+                    'en_attente' => $factures->whereIn('statut', ['envoyee', 'payee_partiel'])->count(),
+                    'en_retard' => $factures->where('statut', 'en_retard')->count(),
+                    'montant_total' => $factures->sum('montant_ttc'),
+                    'montant_paye' => $factures->sum('montant_paye'),
+                    'montant_restant' => $factures->sum('montant_restant'),
+                ],
+                'avancement_facturation' => $chantier->getAvancementFacturationAttribute(),
+                'taux_paiement' => $chantier->getTauxPaiementAttribute(),
+            ]);
+        })->name('api.chantiers.financier');
+        
+        // API pour la recherche de produits/services (pour l'autocomplétion)
+        Route::get('produits/search', function (Request $request) {
+            $query = $request->get('q', '');
+            
+            if (strlen($query) < 2) {
+                return response()->json([]);
+            }
+            
+            // Rechercher dans les lignes existantes pour suggestions
+            $suggestions = \App\Models\Ligne::select('designation', 'unite', 'prix_unitaire_ht', 'categorie')
+                ->where('designation', 'like', "%{$query}%")
+                ->groupBy('designation', 'unite', 'prix_unitaire_ht', 'categorie')
+                ->orderBy('designation')
+                ->limit(10)
+                ->get()
+                ->map(function ($ligne) {
+                    return [
+                        'designation' => $ligne->designation,
+                        'unite' => $ligne->unite,
+                        'prix_unitaire_ht' => $ligne->prix_unitaire_ht,
+                        'categorie' => $ligne->categorie,
+                    ];
+                });
+            
+            return response()->json($suggestions);
+        })->name('api.produits.search');
+    });
+});
+
+// ========================================
+// ROUTES ADMIN POUR DEVIS/FACTURES
+// ========================================
+
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
+    
+    // Gestion globale des devis
+    Route::get('devis', [AdminController::class, 'devis'])->name('admin.devis');
+    Route::get('devis/export', [AdminController::class, 'exportDevis'])->name('admin.devis.export');
+    Route::post('devis/bulk-action', [AdminController::class, 'bulkActionDevis'])->name('admin.devis.bulk-action');
+    
+    // Gestion globale des factures
+    Route::get('factures', [AdminController::class, 'factures'])->name('admin.factures');
+    Route::get('factures/export', [AdminController::class, 'exportFactures'])->name('admin.factures.export');
+    Route::post('factures/bulk-action', [AdminController::class, 'bulkActionFactures'])->name('admin.factures.bulk-action');
+    
+    // Rapports financiers
+    Route::get('rapports/chiffre-affaires', [AdminController::class, 'rapportCA'])->name('admin.rapports.ca');
+    Route::get('rapports/impayees', [AdminController::class, 'rapportImpayees'])->name('admin.rapports.impayees');
+    Route::get('rapports/relances', [AdminController::class, 'rapportRelances'])->name('admin.rapports.relances');
+    
+    // Paramètres des devis/factures
+    Route::get('parametres/facturation', [AdminController::class, 'parametresFacturation'])->name('admin.parametres.facturation');
+    Route::post('parametres/facturation', [AdminController::class, 'saveParametresFacturation'])->name('admin.parametres.facturation.save');
+    
+    // Numérotation automatique
+    Route::post('numerotation/reset', [AdminController::class, 'resetNumerotation'])->name('admin.numerotation.reset');
+    
+    // Nettoyage des données
+    Route::post('cleanup/factures-brouillon', [AdminController::class, 'cleanupFacturesBrouillon'])->name('admin.cleanup.factures-brouillon');
+});
+
+// ========================================
+// ROUTES PUBLIQUES (avec token sécurisé)
+// ========================================
+
+// Visualisation publique des devis (avec token sécurisé)
+Route::get('devis/{devis}/public/{token}', function (Devis $devis, string $token) {
+    // Vérifier le token (hash du devis + sel secret)
+    $expectedToken = hash('sha256', $devis->id . $devis->numero . config('app.key'));
+    
+    if (!hash_equals($expectedToken, $token)) {
+        abort(404);
+    }
+    
+    // Seuls les devis envoyés peuvent être vus publiquement
+    if (!in_array($devis->statut, ['envoye', 'accepte', 'refuse'])) {
+        abort(404);
+    }
+    
+    $devis->load(['chantier', 'lignes']);
+    
+    return view('devis.public', compact('devis'));
+})->name('devis.public');
+
+// Acceptation/refus publique des devis
+Route::post('devis/{devis}/public/{token}/reponse', function (Request $request, Devis $devis, string $token) {
+    $expectedToken = hash('sha256', $devis->id . $devis->numero . config('app.key'));
+    
+    if (!hash_equals($expectedToken, $token)) {
+        abort(404);
+    }
+    
+    if (!$devis->peutEtreAccepte()) {
+        return back()->with('error', 'Ce devis ne peut plus être traité.');
+    }
+    
+    $validated = $request->validate([
+        'action' => 'required|in:accepter,refuser',
+        'signature' => 'nullable|string',
+        'commentaire' => 'nullable|string|max:1000',
+    ]);
+    
+    if ($validated['action'] === 'accepter') {
+        $devis->accepter();
+        if ($request->filled('signature')) {
+            $devis->signerElectroniquement($validated['signature'], $request->ip());
+        }
+        $message = 'Devis accepté avec succès !';
+    } else {
+        $devis->refuser();
+        $message = 'Devis refusé.';
+    }
+    
+    // Notification au commercial
+    \App\Models\Notification::creerNotification(
+        $devis->commercial_id,
+        $devis->chantier_id,
+        'devis_' . ($validated['action'] === 'accepter' ? 'accepte' : 'refuse'),
+        'Réponse client sur devis',
+        "Le client a {$validated['action']} le devis '{$devis->numero}'."
+    );
+    
+    return back()->with('success', $message);
+})->name('devis.public.reponse');

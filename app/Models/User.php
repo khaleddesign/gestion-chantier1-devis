@@ -152,3 +152,93 @@ class User extends Authenticatable
         return $query->where('role', $role);
     }
 }
+
+
+// Ajout à app/Models/User.php - Relations pour devis/factures
+
+// Ajouter ces méthodes dans la classe User existante :
+
+public function devisCommercial()
+{
+    return $this->hasMany(Devis::class, 'commercial_id');
+}
+
+public function facturesCommercial()
+{
+    return $this->hasMany(Facture::class, 'commercial_id');
+}
+
+public function paiementsSaisis()
+{
+    return $this->hasMany(Paiement::class, 'saisi_par');
+}
+
+// Méthodes métier pour les commerciaux
+public function getChiffreAffairesMensuelAttribute(): float
+{
+    return $this->facturesCommercial()
+        ->whereMonth('date_emission', now()->month)
+        ->whereYear('date_emission', now()->year)
+        ->sum('montant_ttc');
+}
+
+public function getChiffreAffairesAnnuelAttribute(): float
+{
+    return $this->facturesCommercial()
+        ->whereYear('date_emission', now()->year)
+        ->sum('montant_ttc');
+}
+
+public function getNombreDevisEnCoursAttribute(): int
+{
+    return $this->devisCommercial()
+        ->whereIn('statut', ['brouillon', 'envoye'])
+        ->count();
+}
+
+public function getTauxConversionDevisAttribute(): float
+{
+    $totalDevis = $this->devisCommercial()->count();
+    $devisAcceptes = $this->devisCommercial()->where('statut', 'accepte')->count();
+    
+    return $totalDevis > 0 ? round(($devisAcceptes / $totalDevis) * 100, 1) : 0;
+}
+
+public function getFacturesEnRetardAttribute()
+{
+    return $this->facturesCommercial()->enRetard()->get();
+}
+
+public function getMontantEnAttenteAttribute(): float
+{
+    return $this->facturesCommercial()
+        ->whereIn('statut', ['envoyee', 'payee_partiel'])
+        ->sum('montant_restant');
+}
+
+// Méthodes pour les clients
+public function getDevisClient()
+{
+    return Devis::whereHas('chantier', function($query) {
+        $query->where('client_id', $this->id);
+    });
+}
+
+public function getFacturesClient()
+{
+    return Facture::whereHas('chantier', function($query) {
+        $query->where('client_id', $this->id);
+    });
+}
+
+public function getMontantTotalAPayerAttribute(): float
+{
+    return $this->getFacturesClient()
+        ->whereIn('statut', ['envoyee', 'payee_partiel', 'en_retard'])
+        ->sum('montant_restant');
+}
+
+public function aDesFacturesEnRetardClient(): bool
+{
+    return $this->getFacturesClient()->enRetard()->exists();
+}
