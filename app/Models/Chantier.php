@@ -5,13 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-// ** On n'importe qu'une seule fois chaque classe externe **
-use App\Models\User;
-use App\Models\Etape;
-use App\Models\Document;
-use App\Models\Commentaire;
-use App\Models\Notification;
-
 class Chantier extends Model
 {
     use HasFactory;
@@ -28,7 +21,7 @@ class Chantier extends Model
         'budget',
         'notes',
         'avancement_global',
-        'active', // si ce champ existe bien dans votre migration
+        'active',
     ];
 
     protected $casts = [
@@ -40,7 +33,10 @@ class Chantier extends Model
         'active'             => 'boolean',
     ];
 
-    // Relations
+    // ========================================
+    // RELATIONS CHANTIERS
+    // ========================================
+    
     public function client()
     {
         return $this->belongsTo(User::class, 'client_id');
@@ -71,7 +67,39 @@ class Chantier extends Model
         return $this->hasMany(Notification::class);
     }
 
-    // Méthodes métier
+    // ========================================
+    // RELATIONS DEVIS/FACTURES
+    // ========================================
+    
+    public function devis()
+    {
+        return $this->hasMany(Devis::class)->orderBy('created_at', 'desc');
+    }
+
+    public function factures()
+    {
+        return $this->hasMany(Facture::class)->orderBy('created_at', 'desc');
+    }
+
+    public function devisActifs()
+    {
+        return $this->hasMany(Devis::class)->whereIn('statut', ['brouillon', 'envoye']);
+    }
+
+    public function devisAcceptes()
+    {
+        return $this->hasMany(Devis::class)->where('statut', 'accepte');
+    }
+
+    public function facturesImpayees()
+    {
+        return $this->hasMany(Facture::class)->whereIn('statut', ['envoyee', 'payee_partiel', 'en_retard']);
+    }
+
+    // ========================================
+    // MÉTHODES MÉTIER CHANTIERS
+    // ========================================
+    
     public function calculerAvancement()
     {
         $etapes = $this->etapes;
@@ -86,9 +114,6 @@ class Chantier extends Model
         return $moyenne;
     }
 
-    /**
-     * Retourne les classes Tailwind CSS pour le badge de statut
-     */
     public function getStatutBadgeClass()
     {
         return match ($this->statut) {
@@ -99,9 +124,6 @@ class Chantier extends Model
         };
     }
 
-    /**
-     * Retourne la couleur Tailwind pour la barre de progression
-     */
     public function getProgressBarColor()
     {
         return match ($this->statut) {
@@ -112,9 +134,6 @@ class Chantier extends Model
         };
     }
 
-    /**
-     * Retourne l'icône correspondant au statut (Heroicons)
-     */
     public function getStatutIcon()
     {
         return match ($this->statut) {
@@ -142,9 +161,6 @@ class Chantier extends Model
             && $this->statut !== 'termine';
     }
 
-    /**
-     * Retourne les classes CSS pour indiquer un retard
-     */
     public function getRetardClass()
     {
         if ($this->isEnRetard()) {
@@ -152,76 +168,49 @@ class Chantier extends Model
         }
         return '';
     }
-}
 
-
-// Ajout à app/Models/Chantier.php - Relations pour devis/factures
-
-// Ajouter ces méthodes dans la classe Chantier existante :
-
-public function devis()
-{
-    return $this->hasMany(Devis::class)->orderBy('created_at', 'desc');
-}
-
-public function factures()
-{
-    return $this->hasMany(Facture::class)->orderBy('created_at', 'desc');
-}
-
-public function devisActifs()
-{
-    return $this->hasMany(Devis::class)->whereIn('statut', ['brouillon', 'envoye']);
-}
-
-public function devisAcceptes()
-{
-    return $this->hasMany(Devis::class)->where('statut', 'accepte');
-}
-
-public function facturesImpayees()
-{
-    return $this->hasMany(Facture::class)->whereIn('statut', ['envoyee', 'payee_partiel', 'en_retard']);
-}
-
-// Méthodes métier pour les devis/factures
-public function getMontantTotalDevisAttribute(): float
-{
-    return $this->devisAcceptes->sum('montant_ttc');
-}
-
-public function getMontantTotalFacturesAttribute(): float
-{
-    return $this->factures->sum('montant_ttc');
-}
-
-public function getMontantRestantAPayerAttribute(): float
-{
-    return $this->factures->sum('montant_restant');
-}
-
-public function getAvancementFacturationAttribute(): float
-{
-    $totalDevis = $this->getMontantTotalDevisAttribute();
-    $totalFactures = $this->getMontantTotalFacturesAttribute();
+    // ========================================
+    // MÉTHODES MÉTIER DEVIS/FACTURES
+    // ========================================
     
-    return $totalDevis > 0 ? round(($totalFactures / $totalDevis) * 100, 1) : 0;
-}
+    public function getMontantTotalDevisAttribute(): float
+    {
+        return $this->devisAcceptes->sum('montant_ttc');
+    }
 
-public function getTauxPaiementAttribute(): float
-{
-    $totalFactures = $this->getMontantTotalFacturesAttribute();
-    $montantPaye = $this->factures->sum('montant_paye');
-    
-    return $totalFactures > 0 ? round(($montantPaye / $totalFactures) * 100, 1) : 0;
-}
+    public function getMontantTotalFacturesAttribute(): float
+    {
+        return $this->factures->sum('montant_ttc');
+    }
 
-public function aDesFacturesEnRetard(): bool
-{
-    return $this->factures()->enRetard()->exists();
-}
+    public function getMontantRestantAPayerAttribute(): float
+    {
+        return $this->factures->sum('montant_restant');
+    }
 
-public function peutAvoirNouveauDevis(): bool
-{
-    return in_array($this->statut, ['planifie', 'en_cours']);
+    public function getAvancementFacturationAttribute(): float
+    {
+        $totalDevis = $this->getMontantTotalDevisAttribute();
+        $totalFactures = $this->getMontantTotalFacturesAttribute();
+        
+        return $totalDevis > 0 ? round(($totalFactures / $totalDevis) * 100, 1) : 0;
+    }
+
+    public function getTauxPaiementAttribute(): float
+    {
+        $totalFactures = $this->getMontantTotalFacturesAttribute();
+        $montantPaye = $this->factures->sum('montant_paye');
+        
+        return $totalFactures > 0 ? round(($montantPaye / $totalFactures) * 100, 1) : 0;
+    }
+
+    public function aDesFacturesEnRetard(): bool
+    {
+        return $this->factures()->enRetard()->exists();
+    }
+
+    public function peutAvoirNouveauDevis(): bool
+    {
+        return in_array($this->statut, ['planifie', 'en_cours']);
+    }
 }

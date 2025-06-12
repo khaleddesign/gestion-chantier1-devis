@@ -122,12 +122,13 @@ return [
         ],
         
         // Taux de TVA disponibles
-        'taux_tva' => [
-            0.00 => '0% (exonéré)',
-            5.50 => '5,5% (taux réduit)',
-            10.00 => '10% (taux intermédiaire)',
-            20.00 => '20% (taux normal)',
-        ],
+        'tva' => [
+    // clés STRING  ⇒ plus de conversion implicite
+    '0'   => 0.00,   // Exonéré
+    '5.5' => 0.055,  // Réduit
+    '10'  => 0.10,   // Intermédiaire
+    '20'  => 0.20,   // Normal
+],
     ],
 
     // Configuration PDF

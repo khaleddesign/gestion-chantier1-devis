@@ -3,7 +3,11 @@
 namespace App\Providers;
 
 use App\Models\Chantier;
+use App\Models\Devis;
+use App\Models\Facture;
 use App\Policies\ChantierPolicy;
+use App\Policies\DevisPolicy;
+use App\Policies\FacturePolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 
@@ -15,7 +19,9 @@ class AuthServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     protected $policies = [
-        \App\Models\Chantier::class => \App\Policies\ChantierPolicy::class,
+        Chantier::class => ChantierPolicy::class,
+        Devis::class => DevisPolicy::class,
+        Facture::class => FacturePolicy::class,
     ];
 
     /**
@@ -23,7 +29,7 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $this->registerPolicies(); // Ajout de cette ligne critique
+        $this->registerPolicies(); // 🔥 LIGNE CRITIQUE AJOUTÉE
 
         // Gates personnalisés
         Gate::define('admin-only', function ($user) {
@@ -36,6 +42,19 @@ class AuthServiceProvider extends ServiceProvider
 
         Gate::define('manage-users', function ($user) {
             return $user->isAdmin();
+        });
+
+        // Gates pour les devis/factures
+        Gate::define('manage-devis', function ($user) {
+            return $user->isAdmin() || $user->isCommercial();
+        });
+
+        Gate::define('manage-factures', function ($user) {
+            return $user->isAdmin() || $user->isCommercial();
+        });
+
+        Gate::define('view-financial-data', function ($user) {
+            return $user->isAdmin() || $user->isCommercial();
         });
     }
 }

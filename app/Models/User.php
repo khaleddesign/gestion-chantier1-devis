@@ -50,7 +50,10 @@ class User extends Authenticatable
         ];
     }
 
-    // Relations
+    // ========================================
+    // RELATIONS CHANTIERS
+    // ========================================
+    
     public function chantiersClient()
     {
         return $this->hasMany(Chantier::class, 'client_id');
@@ -76,7 +79,29 @@ class User extends Authenticatable
         return $this->hasMany(Document::class);
     }
 
-    // Méthodes utilitaires pour les rôles
+    // ========================================
+    // RELATIONS DEVIS/FACTURES
+    // ========================================
+    
+    public function devisCommercial()
+    {
+        return $this->hasMany(Devis::class, 'commercial_id');
+    }
+
+    public function facturesCommercial()
+    {
+        return $this->hasMany(Facture::class, 'commercial_id');
+    }
+
+    public function paiementsSaisis()
+    {
+        return $this->hasMany(Paiement::class, 'saisi_par');
+    }
+
+    // ========================================
+    // MÉTHODES UTILITAIRES POUR LES RÔLES
+    // ========================================
+    
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
@@ -92,13 +117,15 @@ class User extends Authenticatable
         return $this->role === 'client';
     }
 
-    // Méthode pour compter les notifications non lues
+    // ========================================
+    // MÉTHODES MÉTIER CHANTIERS
+    // ========================================
+    
     public function getNotificationsNonLues(): int
     {
         return $this->notifications()->where('lu', false)->count();
     }
 
-    // Méthode pour obtenir les chantiers selon le rôle
     public function getChantiers()
     {
         switch ($this->role) {
@@ -113,7 +140,6 @@ class User extends Authenticatable
         }
     }
 
-    // Statistiques pour l'utilisateur
     public function getStats(): array
     {
         $stats = [
@@ -140,105 +166,93 @@ class User extends Authenticatable
         return $stats;
     }
 
-    // Scope pour filtrer les utilisateurs actifs
+    // ========================================
+    // MÉTHODES MÉTIER COMMERCIAUX (DEVIS/FACTURES)
+    // ========================================
+    
+    public function getChiffreAffairesMensuelAttribute(): float
+    {
+        return $this->facturesCommercial()
+            ->whereMonth('date_emission', now()->month)
+            ->whereYear('date_emission', now()->year)
+            ->sum('montant_ttc');
+    }
+
+    public function getChiffreAffairesAnnuelAttribute(): float
+    {
+        return $this->facturesCommercial()
+            ->whereYear('date_emission', now()->year)
+            ->sum('montant_ttc');
+    }
+
+    public function getNombreDevisEnCoursAttribute(): int
+    {
+        return $this->devisCommercial()
+            ->whereIn('statut', ['brouillon', 'envoye'])
+            ->count();
+    }
+
+    public function getTauxConversionDevisAttribute(): float
+    {
+        $totalDevis = $this->devisCommercial()->count();
+        $devisAcceptes = $this->devisCommercial()->where('statut', 'accepte')->count();
+        
+        return $totalDevis > 0 ? round(($devisAcceptes / $totalDevis) * 100, 1) : 0;
+    }
+
+    public function getFacturesEnRetardAttribute()
+    {
+        return $this->facturesCommercial()->enRetard()->get();
+    }
+
+    public function getMontantEnAttenteAttribute(): float
+    {
+        return $this->facturesCommercial()
+            ->whereIn('statut', ['envoyee', 'payee_partiel'])
+            ->sum('montant_restant');
+    }
+
+    // ========================================
+    // MÉTHODES POUR LES CLIENTS (DEVIS/FACTURES)
+    // ========================================
+    
+    public function getDevisClient()
+    {
+        return Devis::whereHas('chantier', function($query) {
+            $query->where('client_id', $this->id);
+        });
+    }
+
+    public function getFacturesClient()
+    {
+        return Facture::whereHas('chantier', function($query) {
+            $query->where('client_id', $this->id);
+        });
+    }
+
+    public function getMontantTotalAPayerAttribute(): float
+    {
+        return $this->getFacturesClient()
+            ->whereIn('statut', ['envoyee', 'payee_partiel', 'en_retard'])
+            ->sum('montant_restant');
+    }
+
+    public function aDesFacturesEnRetardClient(): bool
+    {
+        return $this->getFacturesClient()->enRetard()->exists();
+    }
+
+    // ========================================
+    // SCOPES
+    // ========================================
+    
     public function scopeActive($query)
     {
         return $query->where('active', true);
     }
 
-    // Scope pour filtrer par rôle
     public function scopeRole($query, $role)
     {
         return $query->where('role', $role);
     }
-}
-
-
-// Ajout à app/Models/User.php - Relations pour devis/factures
-
-// Ajouter ces méthodes dans la classe User existante :
-
-public function devisCommercial()
-{
-    return $this->hasMany(Devis::class, 'commercial_id');
-}
-
-public function facturesCommercial()
-{
-    return $this->hasMany(Facture::class, 'commercial_id');
-}
-
-public function paiementsSaisis()
-{
-    return $this->hasMany(Paiement::class, 'saisi_par');
-}
-
-// Méthodes métier pour les commerciaux
-public function getChiffreAffairesMensuelAttribute(): float
-{
-    return $this->facturesCommercial()
-        ->whereMonth('date_emission', now()->month)
-        ->whereYear('date_emission', now()->year)
-        ->sum('montant_ttc');
-}
-
-public function getChiffreAffairesAnnuelAttribute(): float
-{
-    return $this->facturesCommercial()
-        ->whereYear('date_emission', now()->year)
-        ->sum('montant_ttc');
-}
-
-public function getNombreDevisEnCoursAttribute(): int
-{
-    return $this->devisCommercial()
-        ->whereIn('statut', ['brouillon', 'envoye'])
-        ->count();
-}
-
-public function getTauxConversionDevisAttribute(): float
-{
-    $totalDevis = $this->devisCommercial()->count();
-    $devisAcceptes = $this->devisCommercial()->where('statut', 'accepte')->count();
-    
-    return $totalDevis > 0 ? round(($devisAcceptes / $totalDevis) * 100, 1) : 0;
-}
-
-public function getFacturesEnRetardAttribute()
-{
-    return $this->facturesCommercial()->enRetard()->get();
-}
-
-public function getMontantEnAttenteAttribute(): float
-{
-    return $this->facturesCommercial()
-        ->whereIn('statut', ['envoyee', 'payee_partiel'])
-        ->sum('montant_restant');
-}
-
-// Méthodes pour les clients
-public function getDevisClient()
-{
-    return Devis::whereHas('chantier', function($query) {
-        $query->where('client_id', $this->id);
-    });
-}
-
-public function getFacturesClient()
-{
-    return Facture::whereHas('chantier', function($query) {
-        $query->where('client_id', $this->id);
-    });
-}
-
-public function getMontantTotalAPayerAttribute(): float
-{
-    return $this->getFacturesClient()
-        ->whereIn('statut', ['envoyee', 'payee_partiel', 'en_retard'])
-        ->sum('montant_restant');
-}
-
-public function aDesFacturesEnRetardClient(): bool
-{
-    return $this->getFacturesClient()->enRetard()->exists();
 }

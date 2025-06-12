@@ -9,8 +9,14 @@ use App\Http\Controllers\EtapeController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\CommentaireController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\DevisController;
+use App\Http\Controllers\FactureController;
+use App\Http\Controllers\PaiementController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use Illuminate\Http\Request;
+use App\Models\Chantier;
+use App\Models\Devis;
 
 /*
 |--------------------------------------------------------------------------
@@ -250,113 +256,6 @@ Route::middleware(['auth'])->group(function () {
     })->name('api.dashboard.avancement');
 });
 
-// Routes API pour les appels AJAX (sécurisées) - EXISTANTES
-Route::middleware(['auth'])->prefix('api')->group(function () {
-    Route::get('chantiers/{chantier}/avancement', function (App\Models\Chantier $chantier) {
-        // Vérification des autorisations
-        if (!auth()->user()->can('view', $chantier)) {
-            abort(403, 'Accès non autorisé');
-        }
-        
-        return response()->json([
-            'avancement' => $chantier->avancement_global,
-            'etapes' => $chantier->etapes->map(function ($etape) {
-                return [
-                    'id' => $etape->id,
-                    'nom' => $etape->nom,
-                    'pourcentage' => $etape->pourcentage,
-                    'terminee' => $etape->terminee,
-                ];
-            }),
-        ]);
-    })->name('api.chantiers.avancement');
-    
-    Route::get('notifications/count', function () {
-        $count = auth()->user()->getNotificationsNonLues();
-        return response()->json(['count' => $count]);
-    })->name('api.notifications.count');
-    
-    // API pour les statistiques (admin seulement)
-    Route::middleware(['role:admin'])->get('admin/stats', function () {
-        return response()->json([
-            'total_users' => \App\Models\User::count(),
-            'total_chantiers' => \App\Models\Chantier::count(),
-            'chantiers_actifs' => \App\Models\Chantier::where('statut', 'en_cours')->count(),
-            'chantiers_termines' => \App\Models\Chantier::where('statut', 'termine')->count(),
-            'chantiers_en_retard' => \App\Models\Chantier::whereDate('date_fin_prevue', '<', now())
-                ->where('statut', '!=', 'termine')
-                ->count(),
-        ]);
-    })->name('api.admin.stats');
-    
-    // API pour la recherche de chantiers
-    Route::get('chantiers/search', function (Illuminate\Http\Request $request) {
-        $query = $request->get('q', '');
-        $user = auth()->user();
-        
-        $chantiersQuery = \App\Models\Chantier::query();
-        
-        // Filtrage selon le rôle
-        if ($user->isCommercial()) {
-            $chantiersQuery->where('commercial_id', $user->id);
-        } elseif ($user->isClient()) {
-            $chantiersQuery->where('client_id', $user->id);
-        }
-        
-        $chantiers = $chantiersQuery->where(function ($q) use ($query) {
-            $q->where('titre', 'like', "%{$query}%")
-                ->orWhere('description', 'like', "%{$query}%");
-        })
-            ->with(['client', 'commercial'])
-            ->limit(10)
-            ->get()
-            ->map(function ($chantier) {
-                return [
-                    'id' => $chantier->id,
-                    'titre' => $chantier->titre,
-                    'description' => $chantier->description,
-                    'client' => $chantier->client->name,
-                    'commercial' => $chantier->commercial->name,
-                    'statut' => $chantier->statut,
-                    'url' => route('chantiers.show', $chantier),
-                ];
-            });
-        
-        return response()->json($chantiers);
-    })->name('api.chantiers.search');
-});
-
-// Routes d'erreur personnalisées
-Route::fallback(function () {
-    if (request()->expectsJson()) {
-        return response()->json(['error' => 'Route non trouvée'], 404);
-    }
-    return response()->view('errors.404', [], 404);
-});
-
-// Routes de test (à supprimer en production)
-if (app()->environment('local')) {
-    Route::get('/test-email', function () {
-        return view('emails.notification', [
-            'notification' => \App\Models\Notification::first() ?? new \App\Models\Notification(),
-            'user' => \App\Models\User::first() ?? new \App\Models\User(),
-            'chantier' => \App\Models\Chantier::first() ?? new \App\Models\Chantier(),
-        ]);
-    });
-    
-    // 🧪 Route de test pour le dashboard client
-    Route::get('/test-dashboard', function () {
-        if (!Auth::check()) {
-            return redirect()->route('login');
-        }
-        
-        return view('dashboard.client', [
-            'mes_chantiers' => Auth::user()->chantiersClient,
-            'notifications' => Auth::user()->notifications()->latest()->limit(5)->get()
-        ]);
-    })->middleware('auth');
-}
-
 Route::middleware(['auth'])->group(function () {
     
     // 📁 Routes de téléchargement des documents (versions alternatives)
@@ -382,8 +281,9 @@ Route::middleware(['auth'])->group(function () {
     });
 });
 
-<?php
-// Ajout à routes/web.php - Routes pour les devis et factures
+// ========================================
+// ROUTES DEVIS ET FACTURES - SECTION CORRIGÉE
+// ========================================
 
 Route::middleware(['auth'])->group(function () {
     
@@ -636,3 +536,110 @@ Route::post('devis/{devis}/public/{token}/reponse', function (Request $request, 
     
     return back()->with('success', $message);
 })->name('devis.public.reponse');
+
+// Routes API pour les appels AJAX (sécurisées) - EXISTANTES
+Route::middleware(['auth'])->prefix('api')->group(function () {
+    Route::get('chantiers/{chantier}/avancement', function (App\Models\Chantier $chantier) {
+        // Vérification des autorisations
+        if (!auth()->user()->can('view', $chantier)) {
+            abort(403, 'Accès non autorisé');
+        }
+        
+        return response()->json([
+            'avancement' => $chantier->avancement_global,
+            'etapes' => $chantier->etapes->map(function ($etape) {
+                return [
+                    'id' => $etape->id,
+                    'nom' => $etape->nom,
+                    'pourcentage' => $etape->pourcentage,
+                    'terminee' => $etape->terminee,
+                ];
+            }),
+        ]);
+    })->name('api.chantiers.avancement');
+    
+    Route::get('notifications/count', function () {
+        $count = auth()->user()->getNotificationsNonLues();
+        return response()->json(['count' => $count]);
+    })->name('api.notifications.count');
+    
+    // API pour les statistiques (admin seulement)
+    Route::middleware(['role:admin'])->get('admin/stats', function () {
+        return response()->json([
+            'total_users' => \App\Models\User::count(),
+            'total_chantiers' => \App\Models\Chantier::count(),
+            'chantiers_actifs' => \App\Models\Chantier::where('statut', 'en_cours')->count(),
+            'chantiers_termines' => \App\Models\Chantier::where('statut', 'termine')->count(),
+            'chantiers_en_retard' => \App\Models\Chantier::whereDate('date_fin_prevue', '<', now())
+                ->where('statut', '!=', 'termine')
+                ->count(),
+        ]);
+    })->name('api.admin.stats');
+    
+    // API pour la recherche de chantiers
+    Route::get('chantiers/search', function (Illuminate\Http\Request $request) {
+        $query = $request->get('q', '');
+        $user = auth()->user();
+        
+        $chantiersQuery = \App\Models\Chantier::query();
+        
+        // Filtrage selon le rôle
+        if ($user->isCommercial()) {
+            $chantiersQuery->where('commercial_id', $user->id);
+        } elseif ($user->isClient()) {
+            $chantiersQuery->where('client_id', $user->id);
+        }
+        
+        $chantiers = $chantiersQuery->where(function ($q) use ($query) {
+            $q->where('titre', 'like', "%{$query}%")
+                ->orWhere('description', 'like', "%{$query}%");
+        })
+            ->with(['client', 'commercial'])
+            ->limit(10)
+            ->get()
+            ->map(function ($chantier) {
+                return [
+                    'id' => $chantier->id,
+                    'titre' => $chantier->titre,
+                    'description' => $chantier->description,
+                    'client' => $chantier->client->name,
+                    'commercial' => $chantier->commercial->name,
+                    'statut' => $chantier->statut,
+                    'url' => route('chantiers.show', $chantier),
+                ];
+            });
+        
+        return response()->json($chantiers);
+    })->name('api.chantiers.search');
+});
+
+// Routes d'erreur personnalisées
+Route::fallback(function () {
+    if (request()->expectsJson()) {
+        return response()->json(['error' => 'Route non trouvée'], 404);
+    }
+    return response()->view('errors.404', [], 404);
+});
+
+// Routes de test (à supprimer en production)
+if (app()->environment('local')) {
+    Route::get('/test-email', function () {
+        return view('emails.notification', [
+            'notification' => \App\Models\Notification::first() ?? new \App\Models\Notification(),
+            'user' => \App\Models\User::first() ?? new \App\Models\User(),
+            'chantier' => \App\Models\Chantier::first() ?? new \App\Models\Chantier(),
+        ]);
+    });
+    
+    // 🧪 Route de test pour le dashboard client
+    Route::get('/test-dashboard', function () {
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+        
+        return view('dashboard.client', [
+            'mes_chantiers' => Auth::user()->chantiersClient,
+            'notifications' => Auth::user()->notifications()->latest()->limit(5)->get()
+        ]);
+    })->middleware('auth');
+}
