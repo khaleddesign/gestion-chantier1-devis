@@ -399,18 +399,19 @@ function devisForm() {
             this.ajouterLigne();
         },
         
-        ajouterLigne() {
-            this.lignes.push({
-                designation: '',
-                description: '',
-                quantite: 1,
-                unite: 'pièce',
-                prix_unitaire_ht: 0,
-                taux_tva: 20,
-                remise_pourcentage: 0,
-                total_ht: 0
-            });
-        },
+      ajouterLigne() {
+    this.lignes.push({
+        designation: '',
+        description: '',
+        quantite: 1,
+        unite: 'pièce',
+        prix_unitaire_ht: 0,
+        taux_tva: 20,
+        remise_pourcentage: 0,
+        categorie: '',  // <-- Ajouter cette ligne
+        total_ht: 0
+    });
+},
         
         supprimerLigne(index) {
             this.lignes.splice(index, 1);

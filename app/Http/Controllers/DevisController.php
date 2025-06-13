@@ -122,16 +122,32 @@ class DevisController extends Controller
 
             // Créer les lignes
             foreach ($validated['lignes'] as $index => $ligneData) {
+                // Calculer les montants
+                $quantite = floatval($ligneData['quantite']);
+                $prixUnitaire = floatval($ligneData['prix_unitaire_ht']);
+                $tauxTva = floatval($ligneData['taux_tva'] ?? $validated['taux_tva']);
+                $remisePourcentage = floatval($ligneData['remise_pourcentage'] ?? 0);
+                
+                $montantBrut = $quantite * $prixUnitaire;
+                $remiseMontant = $montantBrut * ($remisePourcentage / 100);
+                $montantHt = $montantBrut - $remiseMontant;
+                $montantTva = $montantHt * ($tauxTva / 100);
+                $montantTtc = $montantHt + $montantTva;
+                
                 $devis->lignes()->create([
                     'ordre' => $index + 1,
                     'designation' => $ligneData['designation'],
-                    'description' => $ligneData['description'],
+                    'description' => $ligneData['description'] ?? null,
                     'unite' => $ligneData['unite'],
-                    'quantite' => $ligneData['quantite'],
-                    'prix_unitaire_ht' => $ligneData['prix_unitaire_ht'],
-                    'taux_tva' => $ligneData['taux_tva'] ?? $validated['taux_tva'],
-                    'remise_pourcentage' => $ligneData['remise_pourcentage'] ?? 0,
-                    'categorie' => $ligneData['categorie'],
+                    'quantite' => $quantite,
+                    'prix_unitaire_ht' => $prixUnitaire,
+                    'taux_tva' => $tauxTva,
+                    'remise_pourcentage' => $remisePourcentage,
+                    'remise_montant' => $remiseMontant,
+                    'categorie' => $ligneData['categorie'] ?? null,
+                    'montant_ht' => $montantHt,
+                    'montant_tva' => $montantTva,
+                    'montant_ttc' => $montantTtc,
                 ]);
             }
 

@@ -5,6 +5,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Ligne extends Model
 {
@@ -49,12 +50,21 @@ class Ligne extends Model
         $montantHt = $montantHtBrut - $this->remise_montant;
         $montantTva = $montantHt * ($this->taux_tva / 100);
         $montantTtc = $montantHt + $montantTva;
-
-        $this->update([
-            'montant_ht' => $montantHt,
-            'montant_tva' => $montantTva,
-            'montant_ttc' => $montantTtc,
-        ]);
+    
+        // Mise à jour directe sans déclencher d'événements
+        DB::table('lignes')
+            ->where('id', $this->id)
+            ->update([
+                'montant_ht' => $montantHt,
+                'montant_tva' => $montantTva,
+                'montant_ttc' => $montantTtc,
+                'updated_at' => now(),
+            ]);
+    
+        // Mettre à jour l'instance
+        $this->montant_ht = $montantHt;
+        $this->montant_tva = $montantTva;
+        $this->montant_ttc = $montantTtc;
     }
 
     public function dupliquer()
@@ -122,6 +132,8 @@ class Ligne extends Model
             }
         });
 
+        // ÉVÉNEMENT SAVED COMMENTÉ POUR ÉVITER LA BOUCLE INFINIE
+        /*
         static::saved(function ($ligne) {
             // Recalculer les montants après modification
             if ($ligne->isDirty(['quantite', 'prix_unitaire_ht', 'taux_tva', 'remise_pourcentage', 'remise_montant'])) {
@@ -133,6 +145,7 @@ class Ligne extends Model
                 }
             }
         });
+        */
 
         static::deleted(function ($ligne) {
             // Mettre à jour les totaux du parent après suppression

@@ -423,163 +423,163 @@
                                     <div>
                                         <p class="text-sm font-medium text-gray-900">
                                             Devis {{ $devis->statut === 'accepte' ? 'accepté' : 'refusé' }}
-                                        </p>
-                                        <p class="text-xs text-gray-500">{{ $devis->date_reponse->format('d/m/Y à H:i') }}</p>
-                                    </div>
-                                </div>
-                            @endif
+                                        </p><p class="text-xs text-gray-500">{{ $devis->date_reponse->format('d/m/Y à H:i') }}</p>
+                                   </div>
+                               </div>
+                           @endif
 
-                            @if($devis->facture_id)
-                                <div class="flex items-start space-x-3">
-                                    <div class="flex-shrink-0">
-                                        <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                                            <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                            </svg>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-900">Converti en facture</p>
-                                        <p class="text-xs text-gray-500">{{ $devis->converted_at?->format('d/m/Y à H:i') }}</p>
-                                        @if($devis->facture)
-                                            <a href="{{ route('chantiers.factures.show', [$chantier, $devis->facture]) }}" 
-                                               class="text-xs text-blue-600 hover:text-blue-800">
-                                                Voir la facture {{ $devis->facture->numero }}
-                                            </a>
-                                        @endif
-                                    </div>
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-                </div>
+                           @if($devis->facture_id)
+                               <div class="flex items-start space-x-3">
+                                   <div class="flex-shrink-0">
+                                       <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                                           <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                           </svg>
+                                       </div>
+                                   </div>
+                                   <div>
+                                       <p class="text-sm font-medium text-gray-900">Converti en facture</p>
+                                       <p class="text-xs text-gray-500">{{ $devis->converted_at?->format('d/m/Y à H:i') }}</p>
+                                       @if($devis->facture)
+                                           <a href="{{ route('chantiers.factures.show', [$chantier, $devis->facture]) }}" 
+                                              class="text-xs text-blue-600 hover:text-blue-800">
+                                               Voir la facture {{ $devis->facture->numero }}
+                                           </a>
+                                       @endif
+                                   </div>
+                               </div>
+                           @endif
+                       </div>
+                   </div>
+               </div>
 
-                <!-- Notes internes -->
-                @if($devis->notes_internes && (Auth::user()->isAdmin() || Auth::user()->isCommercial()))
-                    <div class="bg-yellow-50 shadow-xl rounded-2xl overflow-hidden border border-yellow-200">
-                        <div class="px-6 py-4 bg-yellow-100 border-b border-yellow-200">
-                            <h3 class="text-lg font-semibold text-yellow-800">Notes internes</h3>
-                        </div>
-                        <div class="p-6">
-                            <p class="text-sm text-yellow-700">{{ $devis->notes_internes }}</p>
-                        </div>
-                    </div>
-                @endif
-            </div>
-        </div>
-    </div>
+               <!-- Notes internes -->
+               @if($devis->notes_internes && (Auth::user()->isAdmin() || Auth::user()->isCommercial()))
+                   <div class="bg-yellow-50 shadow-xl rounded-2xl overflow-hidden border border-yellow-200">
+                       <div class="px-6 py-4 bg-yellow-100 border-b border-yellow-200">
+                           <h3 class="text-lg font-semibold text-yellow-800">Notes internes</h3>
+                       </div>
+                       <div class="p-6">
+                           <p class="text-sm text-yellow-700">{{ $devis->notes_internes }}</p>
+                       </div>
+                   </div>
+               @endif
+           </div>
+       </div>
+   </div>
 </div>
 
 <!-- Modal d'acceptation du devis (côté client) -->
 @if(Auth::user()->isClient() && $chantier->client_id === Auth::id() && $devis->statut === 'envoye')
-    <div id="acceptModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-            <div class="mt-3">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-medium text-gray-900">Accepter le devis</h3>
-                    <button onclick="closeModal('acceptModal')" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-                
-                <form action="{{ route('devis.accepter', [$chantier, $devis]) }}" method="POST">
-                    @csrf
-                    <div class="mb-4">
-                        <label for="commentaire_client" class="block text-sm font-medium text-gray-700">
-                            Commentaire (optionnel)
-                        </label>
-                        <textarea name="commentaire_client" 
-                                  id="commentaire_client" 
-                                  rows="3" 
-                                  class="mt-1 form-textarea"
-                                  placeholder="Votre commentaire..."></textarea>
-                    </div>
-                    
-                    <div class="mb-6">
-                        <label class="flex items-center">
-                            <input type="checkbox" class="form-checkbox" required>
-                            <span class="ml-2 text-sm text-gray-700">
-                                J'accepte les conditions générales et confirme cette commande
-                            </span>
-                        </label>
-                    </div>
-                    
-                    <div class="flex justify-end space-x-3">
-                        <button type="button" 
-                                onclick="closeModal('refuseModal')"
-                                class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-                            Annuler
-                        </button>
-                        <button type="submit" 
-                                class="px-4 py-2 bg-red-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-red-700">
-                            Confirmer le refus
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+   <div id="acceptModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+       <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+           <div class="mt-3">
+               <div class="flex items-center justify-between mb-4">
+                   <h3 class="text-lg font-medium text-gray-900">Accepter le devis</h3>
+                   <button onclick="closeModal('acceptModal')" class="text-gray-400 hover:text-gray-600">
+                       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                       </svg>
+                   </button>
+               </div>
+               
+               <form action="{{ route('devis.accepter', [$chantier, $devis]) }}" method="POST">
+                   @csrf
+                   <div class="mb-4">
+                       <label for="commentaire_client" class="block text-sm font-medium text-gray-700">
+                           Commentaire (optionnel)
+                       </label>
+                       <textarea name="commentaire_client" 
+                                 id="commentaire_client" 
+                                 rows="3" 
+                                 class="mt-1 form-textarea"
+                                 placeholder="Votre commentaire..."></textarea>
+                   </div>
+                   
+                   <div class="mb-6">
+                       <label class="flex items-center">
+                           <input type="checkbox" class="form-checkbox" required>
+                           <span class="ml-2 text-sm text-gray-700">
+                               J'accepte les conditions générales et confirme cette commande
+                           </span>
+                       </label>
+                   </div>
+                   
+                   <div class="flex justify-end space-x-3">
+                       <button type="button" 
+                               onclick="closeModal('acceptModal')"
+                               class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                           Annuler
+                       </button>
+                       <button type="submit" 
+                               class="px-4 py-2 bg-green-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-green-700">
+                           Confirmer l'acceptation
+                       </button>
+                   </div>
+               </form>
+           </div>
+       </div>
+   </div>
+
+   <!-- Modal de refus du devis -->
+   <div id="refuseModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+       <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+           <div class="mt-3">
+               <div class="flex items-center justify-between mb-4">
+                   <h3 class="text-lg font-medium text-gray-900">Refuser le devis</h3>
+                   <button onclick="closeModal('refuseModal')" class="text-gray-400 hover:text-gray-600">
+                       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                       </svg>
+                   </button>
+               </div>
+               
+               <form action="{{ route('devis.refuser', [$chantier, $devis]) }}" method="POST">
+                   @csrf
+                   <div class="mb-6">
+                       <label for="raison_refus" class="block text-sm font-medium text-gray-700">
+                           Raison du refus (optionnel)
+                       </label>
+                       <textarea name="raison_refus" 
+                                 id="raison_refus" 
+                                 rows="3" 
+                                 class="mt-1 form-textarea"
+                                 placeholder="Expliquez pourquoi vous refusez ce devis..."></textarea>
+                   </div>
+                   
+                   <div class="flex justify-end space-x-3">
+                       <button type="button" 
+                               onclick="closeModal('refuseModal')"
+                               class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                           Annuler
+                       </button>
+                       <button type="submit" 
+                               class="px-4 py-2 bg-red-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-red-700">
+                           Confirmer le refus
+                       </button>
+                   </div>
+               </form>
+           </div>
+       </div>
+   </div>
 @endif
 
 <script>
 function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(() => {
-        showToast('Lien copié dans le presse-papiers !', 'success');
-    });
+   navigator.clipboard.writeText(text).then(() => {
+       // Optionnel : afficher un message de confirmation
+       alert('Lien copié dans le presse-papiers !');
+   });
 }
 
 function openModal(modalId) {
-    document.getElementById(modalId).classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
+   document.getElementById(modalId).classList.remove('hidden');
+   document.body.classList.add('overflow-hidden');
 }
 
 function closeModal(modalId) {
-    document.getElementById(modalId).classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
+   document.getElementById(modalId).classList.add('hidden');
+   document.body.classList.remove('overflow-hidden');
 }
 </script>
-@endsectionacceptModal')"
-                                class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-                            Annuler
-                        </button>
-                        <button type="submit" 
-                                class="px-4 py-2 bg-green-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-green-700">
-                            Confirmer l'acceptation
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de refus du devis -->
-    <div id="refuseModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-            <div class="mt-3">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-medium text-gray-900">Refuser le devis</h3>
-                    <button onclick="closeModal('refuseModal')" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-                
-                <form action="{{ route('devis.refuser', [$chantier, $devis]) }}" method="POST">
-                    @csrf
-                    <div class="mb-6">
-                        <label for="raison_refus" class="block text-sm font-medium text-gray-700">
-                            Raison du refus (optionnel)
-                        </label>
-                        <textarea name="raison_refus" 
-                                  id="raison_refus" 
-                                  rows="3" 
-                                  class="mt-1 form-textarea"
-                                  placeholder="Expliquez pourquoi vous refusez ce devis..."></textarea>
-                    </div>
-                    
-                    <div class="flex justify-end space-x-3">
-                        <button type="button" 
-                                onclick="closeModal('
+@endsection
