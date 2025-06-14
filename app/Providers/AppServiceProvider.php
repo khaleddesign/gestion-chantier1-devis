@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use App\Helpers\TailwindHelper;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -13,9 +12,11 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         // Enregistrer le helper Tailwind comme singleton
-        $this->app->singleton('tailwind', function () {
-            return new TailwindHelper();
-        });
+        if (class_exists('App\Helpers\TailwindHelper')) {
+            $this->app->singleton('tailwind', function () {
+                return new \App\Helpers\TailwindHelper();
+            });
+        }
     }
 
     /**

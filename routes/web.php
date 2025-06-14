@@ -643,3 +643,40 @@ if (app()->environment('local')) {
         ]);
     })->middleware('auth');
 }
+
+
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
+    
+    // ... vos routes admin existantes ...
+    
+    // ========================================
+    // ROUTES PARAMÈTRES ENTREPRISE
+    // ========================================
+    
+    Route::prefix('entreprise')->name('admin.entreprise.')->group(function () {
+        // Paramètres généraux
+        Route::get('settings', [App\Http\Controllers\EntrepriseController::class, 'settings'])
+             ->name('settings');
+        Route::post('settings', [App\Http\Controllers\EntrepriseController::class, 'store'])
+             ->name('settings.store');
+        
+        // Aperçu PDF
+        Route::get('preview-pdf', [App\Http\Controllers\EntrepriseController::class, 'previewPdf'])
+             ->name('preview-pdf');
+        Route::post('preview-pdf', [App\Http\Controllers\EntrepriseController::class, 'previewPdf']);
+        
+        // Import/Export
+        Route::get('export', [App\Http\Controllers\EntrepriseController::class, 'export'])
+             ->name('export');
+        Route::post('import', [App\Http\Controllers\EntrepriseController::class, 'import'])
+             ->name('import');
+        
+        // Réinitialisation
+        Route::post('reset', [App\Http\Controllers\EntrepriseController::class, 'reset'])
+             ->name('reset');
+        
+        // API pour vérification
+        Route::get('check-configuration', [App\Http\Controllers\EntrepriseController::class, 'checkConfiguration'])
+             ->name('check-configuration');
+    });
+});

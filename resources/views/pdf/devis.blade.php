@@ -1,188 +1,527 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Devis {{ $devis->numero }}</title>
     <style>
-        /* ======= GÉNÉRAL ======= */
-        @page { margin: 70px 32px 80px 32px; }
-        *,*::before,*::after{box-sizing:border-box;}
-        body{font-family:'DejaVu Sans',Arial,sans-serif;font-size:10pt;line-height:1.45;color:#1f2937;}
-
-        /* ======= COULEURS ======= */
-        :root{
-            --c-primary:#0d6efd;
-            --c-grey-50:#f9fafb; --c-grey-100:#f3f4f6; --c-grey-200:#e5e7eb; --c-grey-500:#6b7280;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        /* ======= HEADER ======= */
-        header{position:fixed;top:-60px;left:0;right:0;height:60px;display:flex;align-items:center;justify-content:space-between;padding:12px 32px;border-bottom:2px solid var(--c-grey-200);}  
-        .header-left img{height:46px;}
-        .header-right{text-align:right;}
-        .header-right .title{font-size:16pt;font-weight:700;color:var(--c-primary);} 
-        .header-right .meta{font-size:8pt;line-height:1.3;}
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #333;
+        }
 
-        /* ======= FOOTER ======= */
-        footer{position:fixed;bottom:-70px;left:0;right:0;height:70px;padding:8px 32px;border-top:2px solid var(--c-grey-200);font-size:8pt;color:var(--c-grey-500);display:flex;align-items:center;justify-content:space-between;}
-        .footer-center{text-align:center;flex:1;}
-        .pagenum:before{content:counter(page);} .pagecount:before{content:counter(pages);} 
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+        }
 
-        /* ======= SECTIONS / LAYOUT ======= */
-        .section{margin-bottom:26px;}
-        h2{font-size:11pt;color:var(--c-primary);margin-bottom:6px;text-transform:uppercase;}
-        .two-cols{display:table;width:100%;}
-        .col{display:table-cell;width:50%;vertical-align:top;}
-        .text-right{text-align:right;}
+        /* En-tête */
+        .header {
+            display: table;
+            width: 100%;
+            margin-bottom: 30px;
+        }
 
-        /* ======= TABLE LIGNES ======= */
-        table{width:100%;border-collapse:collapse;}
-        thead{background:var(--c-primary);color:#fff;}
-        th,td{padding:8px 10px;font-size:9.1pt;border:1px solid var(--c-grey-200);} 
-        th{text-transform:uppercase;font-weight:600;letter-spacing:.3px;}
-        tbody tr:nth-child(even){background:var(--c-grey-50);} 
-        tr{page-break-inside:avoid;}
-        .descr{font-style:italic;font-size:8pt;color:var(--c-grey-500);} 
-        .nowrap{white-space:nowrap;}
+        .header-left, .header-right {
+            display: table-cell;
+            vertical-align: top;
+            width: 50%;
+        }
 
-        /* ======= TOTALS ======= */
-        .totals-table{margin-left:auto;width:260px;border-collapse:collapse;margin-top:4px;}
-        .totals-table td{padding:4px 8px;font-size:9pt;}
-        .totals-table tr:last-child td{font-weight:700;color:var(--c-primary);border-top:2px solid var(--c-primary);} 
+        .logo {
+            margin-bottom: 20px;
+        }
 
-        /* ======= PAYMENT & SIGN ======= */
-        .pay-info{margin-top:10px;font-size:9pt;}
-        .pay-info span{font-weight:700;color:var(--c-primary);} 
-        .signature-block{margin-top:24px;font-size:9pt;text-align:right;}
-        .signature-line{margin-top:34px;border-bottom:2px solid var(--c-grey-200);width:240px;height:2px;}
-        .legal{margin-top:22px;font-size:8pt;color:var(--c-grey-500);text-align:center;}
+        .company-info {
+            font-size: 11px;
+            line-height: 1.3;
+        }
 
-        /* ======= PAGE BREAK ======= */
-        .page-break{page-break-before:always;}
+        .company-info strong {
+            display: block;
+            font-size: 14px;
+            color: #2563eb;
+            margin-bottom: 5px;
+        }
+
+        .document-title {
+            text-align: right;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 10px;
+        }
+
+        .document-number {
+            text-align: right;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .document-date {
+            text-align: right;
+            font-size: 11px;
+            color: #666;
+        }
+
+        /* Informations client */
+        .client-section {
+            margin: 30px 0;
+            display: table;
+            width: 100%;
+        }
+
+        .client-left, .client-right {
+            display: table-cell;
+            vertical-align: top;
+            width: 50%;
+        }
+
+        .client-info {
+            background: #f8fafc;
+            padding: 15px;
+            border-left: 4px solid #2563eb;
+        }
+
+        .client-info h3 {
+            font-size: 13px;
+            color: #2563eb;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .client-info p {
+            margin: 3px 0;
+            font-size: 11px;
+        }
+
+        .project-info {
+            padding: 15px 0;
+        }
+
+        .project-info h3 {
+            font-size: 13px;
+            color: #2563eb;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        /* Tableau des lignes */
+        .lines-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 11px;
+        }
+
+        .lines-table th {
+            background: #2563eb;
+            color: white;
+            padding: 10px 5px;
+            text-align: left;
+            font-weight: bold;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .lines-table td {
+            padding: 8px 5px;
+            border-bottom: 1px solid #e5e7eb;
+            vertical-align: top;
+        }
+
+        .lines-table tr:nth-child(even) {
+            background: #f9fafb;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        /* Totaux */
+        .totals {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .totals-table {
+            width: 300px;
+            margin-left: auto;
+            font-size: 12px;
+        }
+
+        .totals-table td {
+            padding: 5px 10px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .totals-table .total-final {
+            background: #2563eb;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* Conditions */
+        .conditions {
+            margin-top: 30px;
+            page-break-inside: avoid;
+        }
+
+        .conditions h3 {
+            font-size: 13px;
+            color: #2563eb;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .conditions-grid {
+            display: table;
+            width: 100%;
+        }
+
+        .condition-item {
+            display: table-cell;
+            width: 33.33%;
+            padding-right: 15px;
+            vertical-align: top;
+        }
+
+        .condition-item h4 {
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #374151;
+        }
+
+        .condition-item p {
+            font-size: 10px;
+            color: #6b7280;
+            line-height: 1.3;
+        }
+
+        /* Signature */
+        .signature-section {
+            margin-top: 40px;
+            display: table;
+            width: 100%;
+        }
+
+        .signature-left, .signature-right {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+        }
+
+        .signature-box {
+            border: 1px solid #d1d5db;
+            padding: 20px;
+            margin: 10px;
+            min-height: 80px;
+            text-align: center;
+        }
+
+        .signature-box h4 {
+            font-size: 11px;
+            margin-bottom: 10px;
+            color: #374151;
+        }
+
+        .signature-box p {
+            font-size: 9px;
+            color: #6b7280;
+            margin-top: 10px;
+        }
+
+        /* Pied de page */
+        .footer {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            text-align: center;
+            font-size: 9px;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 10px;
+        }
+
+        /* Statut du devis */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-accepte {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-envoye {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-brouillon {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .status-refuse {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Responsive pour PDF */
+        @media print {
+            .container {
+                padding: 0;
+            }
+            
+            .page-break {
+                page-break-before: always;
+            }
+        }
     </style>
 </head>
 <body>
-    <!-- ===== HEADER & FOOTER ===== -->
-    <header>
-        <div class="header-left">
-            @if(!empty($entreprise['logo_path']))
-                <img src="{{ public_path($entreprise['logo_path']) }}" alt="Logo">
-            @endif
-        </div>
-        <div class="header-right">
-            <div class="title">Devis N° {{ $devis->numero }}</div>
-            <div class="meta">Créé le {{ $devis->date_emission->format('d/m/Y') }} · Valide jusqu'au {{ $devis->date_validite->format('d/m/Y') }}</div>
-        </div>
-    </header>
-    <footer>
-        <div>SIRET : {{ $entreprise['siret'] }}</div>
-        <div class="footer-center">Page <span class="pagenum"></span>/<span class="pagecount"></span></div>
-        <div>TVA : {{ $entreprise['tva_intracommunautaire'] }}</div>
-    </footer>
-
-    <main>
-        <!-- ===== IDENTITÉS ===== -->
-        <section class="section">
-            <div class="two-cols">
-                <div class="col">
-                    <h2>Vendeur</h2>
-                    {{ $entreprise['nom'] }}<br>
-                    {{ $entreprise['forme_juridique'] ?? '' }} – Capital : {{ $entreprise['capital'] ?? '—' }} €<br>
-                    {{ $entreprise['adresse'] }}<br>
-                    RCS {{ $entreprise['ville_rcs'] ?? '' }} {{ $entreprise['rcs'] ?? '' }}<br>
-                    Assurance : {{ $entreprise['assureur'] ?? '—' }} · Police {{ $entreprise['num_police'] ?? '—' }}<br>
-                    {{ $entreprise['email'] }} – T : {{ $entreprise['telephone'] }}
-                </div>
-                <div class="col text-right">
-                    <h2>Acheteur</h2>
-                    {{ $devis->client_info['nom'] }}<br>
-                    {{ $devis->client_info['adresse'] ?? '' }}
+    <div class="container">
+        <!-- En-tête -->
+        <div class="header">
+            <div class="header-left">
+                @if(isset($entreprise['logo']) && $entreprise['logo'])
+                    <div class="logo">
+                        <img src="{{ public_path($entreprise['logo']) }}" alt="Logo" style="max-height: 60px;">
+                    </div>
+                @endif
+                
+                <div class="company-info">
+                    <strong>{{ $entreprise['nom'] ?? 'Votre Entreprise' }}</strong>
+                    @if(isset($entreprise['adresse']))
+                        <div>{{ $entreprise['adresse'] }}</div>
+                    @endif
+                    @if(isset($entreprise['code_postal']) && isset($entreprise['ville']))
+                        <div>{{ $entreprise['code_postal'] }} {{ $entreprise['ville'] }}</div>
+                    @endif
+                    @if(isset($entreprise['telephone']))
+                        <div>Tél : {{ $entreprise['telephone'] }}</div>
+                    @endif
+                    @if(isset($entreprise['email']))
+                        <div>Email : {{ $entreprise['email'] }}</div>
+                    @endif
+                    @if(isset($entreprise['siret']))
+                        <div>SIRET : {{ $entreprise['siret'] }}</div>
+                    @endif
                 </div>
             </div>
-        </section>
+            
+            <div class="header-right">
+                <div class="document-title">DEVIS</div>
+                <div class="document-number">N° {{ $devis->numero }}</div>
+                <div class="document-date">
+                    Date d'émission : {{ $devis->date_emission->format('d/m/Y') }}<br>
+                    Valable jusqu'au : {{ $devis->date_validite->format('d/m/Y') }}
+                </div>
+                
+                @if($devis->statut !== 'brouillon')
+                    <div style="margin-top: 10px;">
+                        <span class="status-badge status-{{ $devis->statut }}">
+                            {{ $devis->statut_texte }}
+                        </span>
+                    </div>
+                @endif
+            </div>
+        </div>
 
-        @if($devis->titre)
-            <section class="section"><h2>{{ $devis->titre }}</h2></section>
-        @endif
+        <!-- Informations client et projet -->
+        <div class="client-section">
+            <div class="client-left">
+                <div class="client-info">
+                    <h3>Client</h3>
+                    <p><strong>{{ $devis->client_nom }}</strong></p>
+                    @if(isset($devis->client_info['adresse']) && $devis->client_info['adresse'])
+                        <p>{{ $devis->client_info['adresse'] }}</p>
+                    @endif
+                    @if(isset($devis->client_info['email']) && $devis->client_info['email'])
+                        <p>Email : {{ $devis->client_info['email'] }}</p>
+                    @endif
+                    @if(isset($devis->client_info['telephone']) && $devis->client_info['telephone'])
+                        <p>Tél : {{ $devis->client_info['telephone'] }}</p>
+                    @endif
+                </div>
+            </div>
+            
+            <div class="client-right">
+                <div class="project-info">
+                    <h3>Projet</h3>
+                    <p><strong>{{ $devis->titre }}</strong></p>
+                    @if($devis->description)
+                        <p>{{ $devis->description }}</p>
+                    @endif
+                    @if($devis->chantier)
+                        <p>Chantier : {{ $devis->chantier->titre }}</p>
+                    @endif
+                    @if($devis->commercial)
+                        <p>Commercial : {{ $devis->commercial->name }}</p>
+                    @endif
+                </div>
+            </div>
+        </div>
 
-        <!-- ===== TABLE LIGNES ===== -->
-        <section class="section">
-            <table>
+        <!-- Tableau des lignes -->
+        @if($devis->lignes->count() > 0)
+            <table class="lines-table">
                 <thead>
                     <tr>
-                        <th style="width:4%">#</th><th style="width:34%">Désignation</th><th style="width:8%">Qté</th>
-                        <th style="width:10%">PU HT</th><th style="width:10%">Total HT</th><th style="width:8%">TVA</th>
-                        <th style="width:12%">TVA €</th><th style="width:14%">Total TTC</th>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 35%;">Désignation</th>
+                        <th style="width: 8%;">Unité</th>
+                        <th style="width: 8%;">Qté</th>
+                        <th style="width: 12%;">Prix unit. HT</th>
+                        @if($devis->lignes->where('remise_pourcentage', '>', 0)->count() > 0)
+                            <th style="width: 8%;">Remise</th>
+                        @endif
+                        <th style="width: 8%;">TVA</th>
+                        <th style="width: 12%;">Montant HT</th>
+                        <th style="width: 12%;">Montant TTC</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($devis->lignes as $idx=>$l)
+                    @foreach($devis->lignes as $ligne)
                         <tr>
-                            <td class="text-center nowrap">{{ $idx+1 }}</td>
-                            <td><strong>{{ $l->designation }}</strong>@if($l->description)<div class="descr">{{ $l->description }}</div>@endif</td>
-                            <td class="text-center nowrap">{{ number_format($l->quantite,2,',',' ') }} {{ $l->unite }}</td>
-                            <td class="text-right nowrap">{{ number_format($l->prix_unitaire_ht,2,',',' ') }} €</td>
-                            <td class="text-right nowrap">{{ number_format($l->montant_ht,2,',',' ') }} €</td>
-                            <td class="text-center nowrap">{{ number_format($l->taux_tva,0,',',' ') }} %</td>
-                            <td class="text-right nowrap">{{ number_format($l->montant_tva,2,',',' ') }} €</td>
-                            <td class="text-right nowrap">{{ number_format($l->montant_ttc,2,',',' ') }} €</td>
+                            <td class="text-center">{{ $ligne->ordre }}</td>
+                            <td>
+                                <strong>{{ $ligne->designation }}</strong>
+                                @if($ligne->description)
+                                    <br><small style="color: #6b7280;">{{ $ligne->description }}</small>
+                                @endif
+                            </td>
+                            <td class="text-center">{{ $ligne->unite }}</td>
+                            <td class="text-center">{{ number_format($ligne->quantite, 2, ',', ' ') }}</td>
+                            <td class="text-right">{{ number_format($ligne->prix_unitaire_ht, 2, ',', ' ') }} €</td>
+                            @if($devis->lignes->where('remise_pourcentage', '>', 0)->count() > 0)
+                                <td class="text-center">
+                                    @if($ligne->remise_pourcentage > 0)
+                                        {{ number_format($ligne->remise_pourcentage, 1, ',', ' ') }}%
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                            @endif
+                            <td class="text-center">{{ number_format($ligne->taux_tva, 1, ',', ' ') }}%</td>
+                            <td class="text-right">{{ number_format($ligne->montant_ht, 2, ',', ' ') }} €</td>
+                            <td class="text-right">{{ number_format($ligne->montant_ttc, 2, ',', ' ') }} €</td>
                         </tr>
                     @endforeach
                 </tbody>
-                <tfoot>
-                    <tr style="background:var(--c-primary);color:#fff;font-weight:700;">
-                        <td colspan="7" class="text-right">Total TTC :</td>
-                        <td class="text-right nowrap">{{ number_format($devis->montant_ttc,2,',',' ') }} €</td>
-                    </tr>
-                </tfoot>
             </table>
-        </section>
+        @endif
 
-        <!-- ===== RÉCAP ===== -->
-        <section class="section">
+        <!-- Totaux -->
+        <div class="totals">
             <table class="totals-table">
-                <tr><td>Total HT</td><td class="text-right">{{ number_format($devis->montant_ht,2,',',' ') }} €</td></tr>
-                <tr><td>Montant TVA</td><td class="text-right">{{ number_format($devis->montant_tva,2,',',' ') }} €</td></tr>
-                <tr><td>Total TTC</td><td class="text-right">{{ number_format($devis->montant_ttc,2,',',' ') }} €</td></tr>
+                <tr>
+                    <td><strong>Total HT :</strong></td>
+                    <td class="text-right">{{ number_format($devis->montant_ht, 2, ',', ' ') }} €</td>
+                </tr>
+                <tr>
+                    <td><strong>Total TVA :</strong></td>
+                    <td class="text-right">{{ number_format($devis->montant_tva, 2, ',', ' ') }} €</td>
+                </tr>
+                <tr class="total-final">
+                    <td><strong>Total TTC :</strong></td>
+                    <td class="text-right"><strong>{{ number_format($devis->montant_ttc, 2, ',', ' ') }} €</strong></td>
+                </tr>
             </table>
-        </section>
+        </div>
 
-        <!-- ===== PAIEMENT ===== -->
-        <section class="section pay-info">
-            À payer : <span>{{ number_format($devis->montant_ttc,2,',',' ') }} € TTC</span><br>
-            @isset($devis->montant_ttc_lettres)En lettres : {{ Str::ucfirst($devis->montant_ttc_lettres) }}<br>@endisset
-            Mode : {{ $devis->mode_reglement ?? 'Virement bancaire' }} · Pénalités : taux BCE + 10 pts · Escompte : aucun.
-        </section>
+        <!-- Conditions -->
+        <div class="conditions">
+            <h3>Conditions</h3>
+            <div class="conditions-grid">
+                <div class="condition-item">
+                    <h4>Délai de réalisation</h4>
+                    <p>{{ $devis->delai_realisation ? $devis->delai_realisation . ' jours' : 'À définir' }}</p>
+                </div>
+                <div class="condition-item">
+                    <h4>Modalités de paiement</h4>
+                    <p>{{ $devis->modalites_paiement ?: 'Selon conditions générales' }}</p>
+                </div>
+                <div class="condition-item">
+                    <h4>Validité du devis</h4>
+                    <p>{{ $devis->date_validite->format('d/m/Y') }}</p>
+                </div>
+            </div>
+        </div>
 
-        <!-- ===== SIGNATURE ===== -->
-        <section class="signature-block">
-            Bon pour accord le {{ $devis->date_emission->format('d/m/Y') }}<br>
-            @if($devis->signature_client)
-                <img src="{{ $devis->signature_client }}" alt="Signature" style="height:60px;margin-top:6px;">
-            @else
-                <div class="signature-line"></div>
+        <!-- Conditions générales -->
+        @if($devis->conditions_generales)
+            <div class="conditions" style="margin-top: 20px;">
+                <h3>Conditions générales</h3>
+                <div style="font-size: 10px; line-height: 1.4; text-align: justify;">
+                    {!! nl2br(e($devis->conditions_generales)) !!}
+                </div>
+            </div>
+        @endif
+
+        <!-- Signatures -->
+        @if($devis->statut === 'envoye' || $devis->statut === 'accepte')
+            <div class="signature-section">
+                <div class="signature-left">
+                    <div class="signature-box">
+                        <h4>Signature du client</h4>
+                        <div style="height: 50px;">
+                            @if($devis->signature_client && $devis->statut === 'accepte')
+                                <div style="font-size: 10px; color: #16a34a;">
+                                    ✓ Devis accepté le {{ $devis->date_reponse->format('d/m/Y à H:i') }}
+                                </div>
+                            @endif
+                        </div>
+                        <p>Date et signature<br>Mention "Bon pour accord"</p>
+                    </div>
+                </div>
+                
+                <div class="signature-right">
+                    <div class="signature-box">
+                        <h4>{{ $entreprise['nom'] ?? 'L\'entreprise' }}</h4>
+                        <div style="height: 50px;"></div>
+                        <p>Date et signature</p>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        <!-- Pied de page -->
+        <div class="footer">
+            {{ $entreprise['nom'] ?? 'Votre Entreprise' }} - 
+            @if(isset($entreprise['siret']))
+                SIRET : {{ $entreprise['siret'] }} - 
             @endif
-        </section>
-
-        <!-- ===== LEGAL ===== -->
-        <section class="legal">{{ $config['legal']['mentions_legales']['devis'] ?? 'Devis valable 30 jours – Clause de réserve de propriété.' }}</section>
-    </main>
-
-    <!-- ===== PAGE INFO ENTREPRISE (facultative) ===== -->
-    @if($showInfoEntreprise ?? true)
-    <div class="page-break"></div>
-    <h2>Informations légales de l'entreprise</h2>
-    <table class="info-table">
-        <tr><th>Nom</th><td>{{ $entreprise['nom'] }}</td></tr>
-        <tr><th>SIRET</th><td>{{ $entreprise['siret'] }}</td></tr>
-        <tr><th>TVA intra.</th><td>{{ $entreprise['tva_intracommunautaire'] }}</td></tr>
-        <tr><th>RCS</th><td>{{ $entreprise['ville_rcs'] ?? '' }} {{ $entreprise['rcs'] ?? '' }}</td></tr>
-        <tr><th>Adresse</th><td>{{ $entreprise['adresse'] }}</td></tr>
-        <tr><th>Téléphone</th><td>{{ $entreprise['telephone'] }}</td></tr>
-        <tr><th>Email</th><td>{{ $entreprise['email'] }}</td></tr>
-        <tr><th>Capital social</th><td>{{ $entreprise['capital'] ?? '—' }} €</td></tr>
-        <tr><th>Assurance</th><td>{{ $entreprise['assureur'] ?? '—' }} – Police {{ $entreprise['num_police'] ?? '—' }}</td></tr>
-    </table>
-    @endif
+            @if(isset($entreprise['email']))
+                {{ $entreprise['email'] }} - 
+            @endif
+            @if(isset($entreprise['telephone']))
+                {{ $entreprise['telephone'] }}
+            @endif
+        </div>
+    </div>
 </body>
 </html>
